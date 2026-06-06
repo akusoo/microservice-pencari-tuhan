@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Library Auth — Test Page</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f0f2f5; padding: 24px; }
+    h1 { font-size: 1.4rem; margin-bottom: 20px; color: #1a1a2e; }
+    h2 { font-size: 1rem; margin-bottom: 12px; color: #333; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 900px; }
+    .card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .card.full { grid-column: 1 / -1; }
+    label { display: block; font-size: .8rem; color: #555; margin-bottom: 4px; margin-top: 10px; }
+    label:first-of-type { margin-top: 0; }
+    input { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: .9rem; }
+    button {
+      margin-top: 14px; width: 100%; padding: 9px;
+      background: #4361ee; color: #fff; border: none; border-radius: 6px;
+      font-size: .9rem; cursor: pointer; transition: background .2s;
+    }
+    button:hover { background: #3a56d4; }
+    button.danger { background: #e63946; }
+    button.danger:hover { background: #c1121f; }
+    button.secondary { background: #6c757d; }
+    button.secondary:hover { background: #5a6268; }
+    #status-bar {
+      padding: 8px 14px; border-radius: 6px; font-size: .85rem;
+      background: #e9ecef; color: #495057; margin-bottom: 16px; max-width: 900px;
+    }
+    #status-bar.ok { background: #d1e7dd; color: #0f5132; }
+    #status-bar.err { background: #f8d7da; color: #842029; }
+    pre {
+      background: #1a1a2e; color: #e2e8f0; padding: 14px; border-radius: 8px;
+      font-size: .8rem; white-space: pre-wrap; word-break: break-all;
+      max-height: 300px; overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Library Auth Service — Test Page</h1>
+
+  <div id="status-bar">Not logged in. Access token: <em>none</em></div>
+
+  <div class="grid">
+
+    <!-- Register -->
+    <div class="card">
+      <h2>Register</h2>
+      <label>Username</label>
+      <input id="reg-username" placeholder="johndoe" />
+      <label>Email</label>
+      <input id="reg-email" type="email" placeholder="john@example.com" />
+      <label>Password (min 8 chars)</label>
+      <input id="reg-password" type="password" placeholder="••••••••" />
+      <button onclick="register()">Register</button>
+    </div>
+
+    <!-- Login -->
+    <div class="card">
+      <h2>Login</h2>
+      <label>Username</label>
+      <input id="login-username" placeholder="johndoe" />
+      <label>Password</label>
+      <input id="login-password" type="password" placeholder="••••••••" />
+      <button onclick="login()">Login</button>
+    </div>
+
+    <!-- Auth Actions -->
+    <div class="card">
+      <h2>Auth Actions</h2>
+      <button onclick="getMe()">GET /auth/me</button>
+      <button class="secondary" onclick="manualRefresh()" style="margin-top:8px">POST /auth/refresh (manual)</button>
+      <button class="danger" onclick="logout()" style="margin-top:8px">POST /auth/logout</button>
+    </div>
+
+    <!-- Response -->
+    <div class="card full">
+      <h2>Response</h2>
+      <pre id="result">— awaiting request —</pre>
+    </div>
+
+  </div>
+
+  <script>
+    // Access token lives in memory only (never localStorage)
+    let accessToken = null;
+
+    const BASE_URL = window.location.origin; // http://localhost:8000
+
+    // ── Axios instance ──────────────────────────────────────────────────────
+    const api = axios.create({ baseURL: BASE_URL, withCredentials: true });
+
+    // Request interceptor: attach Bearer token
+    api.interceptors.request.use(cfg => {
+      if (accessToken) cfg.headers['Authorization'] = `Bearer ${accessToken}`;
+      return cfg;
+    });
+
+    // Response interceptor: auto-refresh on 401
+    let isRefreshing = false;
+    let waitQueue = [];
+
+    api.interceptors.response.use(
+      res => res,
+      async err => {
+        const original = err.config;
+        if (err.response?.status === 401 && !original._retry
+            && !original.url?.endsWith('/auth/login')
+            && !original.url?.endsWith('/auth/refresh')) {
+
+          if (isRefreshing) {
+            return new Promise((resolve, reject) => waitQueue.push({ resolve, reject }))
+              .then(token => { original.headers['Authorization'] = `Bearer ${token}`; return api(original); });
+          }
+
+          original._retry = true;
+          isRefreshing = true;
+
+          try {
+            const resp = await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true });
+            accessToken = resp.data.access_token;
+            waitQueue.forEach(({ resolve }) => resolve(accessToken));
+            waitQueue = [];
+            original.headers['Authorization'] = `Bearer ${accessToken}`;
+            updateStatusBar();
+            return api(original);
+          } catch (refreshErr) {
+            waitQueue.forEach(({ reject }) => reject(refreshErr));
+            waitQueue = [];
+            accessToken = null;
+            updateStatusBar();
+            show({ error: 'Session expired — please login again' });
+            return Promise.reject(refreshErr);
+          } finally {
+            isRefreshing = false;
+          }
+        }
+        return Promise.reject(err);
+      }
+    );
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    function show(data) {
+      document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+    }
+
+    function showErr(err) {
+      show(err.response?.data ?? { error: err.message });
+    }
+
+    function updateStatusBar() {
+      const bar = document.getElementById('status-bar');
+      if (accessToken) {
+        bar.className = 'ok';
+        bar.textContent = `Logged in. Access token: ${accessToken.slice(0, 20)}…`;
+      } else {
+        bar.className = 'err';
+        bar.textContent = 'Not logged in. Access token: none';
+      }
+    }
+
+    // ── Actions ──────────────────────────────────────────────────────────────
+    async function register() {
+      try {
+        const res = await api.post('/auth/register', {
+          username: document.getElementById('reg-username').value,
+          email:    document.getElementById('reg-email').value,
+          password: document.getElementById('reg-password').value,
+        });
+        show(res.data);
+      } catch (e) { showErr(e); }
+    }
+
+    async function login() {
+      try {
+        const res = await api.post('/auth/login', {
+          username: document.getElementById('login-username').value,
+          password: document.getElementById('login-password').value,
+        });
+        accessToken = res.data.access_token;
+        updateStatusBar();
+        show({ message: 'Login successful — access token stored in memory', ...res.data });
+      } catch (e) { showErr(e); }
+    }
+
+    async function getMe() {
+      try { show((await api.get('/auth/me')).data); }
+      catch (e) { showErr(e); }
+    }
+
+    async function manualRefresh() {
+      try {
+        const res = await api.post('/auth/refresh');
+        accessToken = res.data.access_token;
+        updateStatusBar();
+        show({ message: 'Token refreshed — new token stored in memory', ...res.data });
+      } catch (e) { showErr(e); }
+    }
+
+    async function logout() {
+      try {
+        const res = await api.post('/auth/logout');
+        accessToken = null;
+        updateStatusBar();
+        show(res.data);
+      } catch (e) { showErr(e); }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  api-gateway:
+    build: .
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    networks:
+      - library-network
+    restart: unless-stopped
+
+networks:
+  library-network:
+    # Must already exist — created by auth-service compose or manually:
+    # docker network create library-network
+    external: true
