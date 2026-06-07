@@ -26,6 +26,12 @@ env/
 **/alembic/versions/__pycache__/
 alembic/versions/*.pyc
 
+# Test artifacts
+.pytest_cache/
+.venv-test/
+htmlcov/
+.coverage
+
 # Editors / OS
 .DS_Store
 .vscode/
