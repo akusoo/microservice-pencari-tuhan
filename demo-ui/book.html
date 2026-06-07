@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Book Service — Demo UI</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { margin-bottom: 0; }
+  p.hint { color: #666; margin-top: .25rem; }
+  fieldset { margin-bottom: 1.5rem; border: 1px solid #ddd; border-radius: 6px; }
+  legend { font-weight: 600; padding: 0 .5rem; }
+  label { display: block; font-size: .85rem; margin-top: .5rem; }
+  input, select { width: 100%; padding: .4rem; box-sizing: border-box; margin-top: .15rem; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+  button { padding: .5rem 1rem; margin-top: .75rem; cursor: pointer; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: .9rem; }
+  th, td { border: 1px solid #ddd; padding: .4rem .5rem; text-align: left; }
+  th { background: #f5f5f5; }
+  .actions button { margin: 0 .15rem; padding: .25rem .5rem; font-size: .8rem; }
+  #status { white-space: pre-wrap; background: #f5f5f5; border-radius: 6px; padding: .75rem; font-size: .8rem; min-height: 1.5rem; }
+  .danger { background: #c0392b; color: #fff; border: none; }
+</style>
+</head>
+<body>
+<h1>Book Service — Demo UI</h1>
+<p class="hint">
+  Talks directly to the Book Service (no gateway/auth yet — fill in
+  <code>X-User-ID</code> / <code>X-User-Role</code> below to simulate what the
+  gateway would inject after JWT validation).
+</p>
+
+<fieldset>
+  <legend>Connection</legend>
+  <div class="row">
+    <div>
+      <label>Service base URL
+        <input id="baseUrl" value="http://localhost:8002">
+      </label>
+    </div>
+    <div>
+      <label>X-User-Role
+        <select id="role">
+          <option value="admin">admin</option>
+          <option value="librarian">librarian</option>
+          <option value="member">member</option>
+        </select>
+      </label>
+    </div>
+  </div>
+  <label>X-User-ID (any UUID — gateway would inject the real one from the JWT)
+    <input id="userId" value="11111111-1111-1111-1111-111111111111">
+  </label>
+</fieldset>
+
+<fieldset>
+  <legend>Search / list</legend>
+  <label>Search by title, author or category
+    <input id="searchQ" placeholder="leave empty to list all">
+  </label>
+  <button onclick="loadBooks()">Search / List</button>
+</fieldset>
+
+<fieldset>
+  <legend>Create book (admin / librarian)</legend>
+  <div class="row">
+    <label>Title <input id="f_title" value="Sapiens"></label>
+    <label>Author <input id="f_author" value="Yuval Noah Harari"></label>
+    <label>ISBN <input id="f_isbn" value="9780062316097"></label>
+    <label>Publisher <input id="f_publisher" value="Harper"></label>
+    <label>Category <input id="f_category" value="history"></label>
+    <label>Year <input id="f_year" type="number" value="2015"></label>
+    <label>Total copies <input id="f_total" type="number" value="3"></label>
+  </div>
+  <label>Description <input id="f_description" value="A brief history of humankind"></label>
+  <button onclick="createBook()">Create</button>
+</fieldset>
+
+<table id="booksTable">
+  <thead>
+    <tr><th>Title</th><th>Author</th><th>ISBN</th><th>Category</th><th>Stock</th><th>Actions</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<h3>Status</h3>
+<div id="status">—</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function headers(extra = {}) {
+  return {
+    'Content-Type': 'application/json',
+    'X-User-ID': $('userId').value.trim(),
+    'X-User-Role': $('role').value,
+    ...extra,
+  };
+}
+
+function showStatus(label, resp, body) {
+  $('status').textContent = `${label} → HTTP ${resp.status}\n${JSON.stringify(body, null, 2)}`;
+}
+
+async function call(path, options = {}) {
+  const url = $('baseUrl').value.replace(/\/$/, '') + path;
+  const resp = await fetch(url, options);
+  let body = null;
+  try { body = await resp.json(); } catch (_) { /* e.g. 204 No Content */ }
+  return { resp, body };
+}
+
+async function loadBooks() {
+  const q = $('searchQ').value.trim();
+  const path = q ? `/books/search?q=${encodeURIComponent(q)}` : '/books';
+  const { resp, body } = await call(path);
+  showStatus(q ? 'Search books' : 'List books', resp, body);
+  if (!resp.ok) return;
+  renderBooks(body);
+}
+
+function renderBooks(books) {
+  const tbody = document.querySelector('#booksTable tbody');
+  tbody.innerHTML = '';
+  for (const b of books) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${b.title}</td>
+      <td>${b.author}</td>
+      <td>${b.isbn}</td>
+      <td>${b.category}</td>
+      <td>${b.available_copies} / ${b.total_copies}</td>
+      <td class="actions">
+        <button onclick="adjustStock('${b.id}', -1)">Borrow (-1)</button>
+        <button onclick="adjustStock('${b.id}', 1)">Return (+1)</button>
+        <button class="danger" onclick="deleteBook('${b.id}')">Delete</button>
+      </td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+async function createBook() {
+  const payload = {
+    title: $('f_title').value,
+    author: $('f_author').value,
+    isbn: $('f_isbn').value,
+    publisher: $('f_publisher').value || null,
+    category: $('f_category').value,
+    description: $('f_description').value || null,
+    year: $('f_year').value ? Number($('f_year').value) : null,
+    total_copies: Number($('f_total').value),
+  };
+  const { resp, body } = await call('/books', { method: 'POST', headers: headers(), body: JSON.stringify(payload) });
+  showStatus('Create book', resp, body);
+  if (resp.ok) loadBooks();
+}
+
+async function adjustStock(id, delta) {
+  // PATCH /books/{id}/stock has no role gate — this is the Loan Service's
+  // direct inter-service contract, demoed here without auth headers.
+  const { resp, body } = await call(`/books/${id}/stock`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ delta }),
+  });
+  showStatus(`Adjust stock (${delta > 0 ? '+' : ''}${delta})`, resp, body);
+  if (resp.ok) loadBooks();
+}
+
+async function deleteBook(id) {
+  if (!confirm('Delete this book? (admin only)')) return;
+  const { resp, body } = await call(`/books/${id}`, { method: 'DELETE', headers: headers() });
+  showStatus('Delete book', resp, body);
+  loadBooks();
+}
+
+loadBooks();
+</script>
+</body>
+</html>

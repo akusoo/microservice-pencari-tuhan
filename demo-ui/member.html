@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Member Service — Demo UI</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { margin-bottom: 0; }
+  p.hint { color: #666; margin-top: .25rem; }
+  fieldset { margin-bottom: 1.5rem; border: 1px solid #ddd; border-radius: 6px; }
+  legend { font-weight: 600; padding: 0 .5rem; }
+  label { display: block; font-size: .85rem; margin-top: .5rem; }
+  input, select { width: 100%; padding: .4rem; box-sizing: border-box; margin-top: .15rem; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+  button { padding: .5rem 1rem; margin-top: .75rem; cursor: pointer; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: .9rem; }
+  th, td { border: 1px solid #ddd; padding: .4rem .5rem; text-align: left; }
+  th { background: #f5f5f5; }
+  .actions button { margin: 0 .15rem; padding: .25rem .5rem; font-size: .8rem; }
+  #status { white-space: pre-wrap; background: #f5f5f5; border-radius: 6px; padding: .75rem; font-size: .8rem; min-height: 1.5rem; }
+  .danger { background: #c0392b; color: #fff; border: none; }
+  .badge { padding: .1rem .4rem; border-radius: 4px; font-size: .75rem; }
+  .badge.active { background: #d4edda; color: #155724; }
+  .badge.inactive { background: #fff3cd; color: #856404; }
+  .badge.blocked { background: #f8d7da; color: #721c24; }
+</style>
+</head>
+<body>
+<h1>Member Service — Demo UI</h1>
+<p class="hint">
+  Talks directly to the Member Service (no gateway/auth yet — fill in
+  <code>X-User-ID</code> / <code>X-User-Role</code> below to simulate what the
+  gateway would inject after JWT validation).
+</p>
+
+<fieldset>
+  <legend>Connection</legend>
+  <div class="row">
+    <div>
+      <label>Service base URL
+        <input id="baseUrl" value="http://localhost:8003">
+      </label>
+    </div>
+    <div>
+      <label>X-User-Role
+        <select id="role">
+          <option value="admin">admin</option>
+          <option value="librarian">librarian</option>
+          <option value="member">member</option>
+        </select>
+      </label>
+    </div>
+  </div>
+  <label>X-User-ID (any UUID — gateway would inject the real one from the JWT)
+    <input id="userId" value="11111111-1111-1111-1111-111111111111">
+  </label>
+</fieldset>
+
+<fieldset>
+  <legend>List / my profile</legend>
+  <button onclick="loadMembers()">List members (admin/librarian)</button>
+  <button onclick="loadMyProfile()">GET /members/me (uses X-User-ID above)</button>
+</fieldset>
+
+<fieldset>
+  <legend>Register member (admin / librarian)</legend>
+  <div class="row">
+    <label>user_id (UUID, ref auth.users.id) <input id="f_user_id" value="33333333-3333-3333-3333-333333333333"></label>
+    <label>Full name <input id="f_full_name" value="Budi Santoso"></label>
+    <label>Email <input id="f_email" type="email" value="budi@example.com"></label>
+    <label>Phone <input id="f_phone" value="081234567890"></label>
+  </div>
+  <label>Address <input id="f_address" value="Jl. Merdeka No. 1"></label>
+  <button onclick="createMember()">Register</button>
+</fieldset>
+
+<table id="membersTable">
+  <thead>
+    <tr><th>Name</th><th>Email</th><th>user_id</th><th>Status</th><th>Actions</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<h3>Status</h3>
+<div id="status">—</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function headers(extra = {}) {
+  return {
+    'Content-Type': 'application/json',
+    'X-User-ID': $('userId').value.trim(),
+    'X-User-Role': $('role').value,
+    ...extra,
+  };
+}
+
+function showStatus(label, resp, body) {
+  $('status').textContent = `${label} → HTTP ${resp.status}\n${JSON.stringify(body, null, 2)}`;
+}
+
+async function call(path, options = {}) {
+  const url = $('baseUrl').value.replace(/\/$/, '') + path;
+  const resp = await fetch(url, options);
+  let body = null;
+  try { body = await resp.json(); } catch (_) { /* e.g. 204 No Content */ }
+  return { resp, body };
+}
+
+async function loadMembers() {
+  const { resp, body } = await call('/members', { headers: headers() });
+  showStatus('List members', resp, body);
+  if (resp.ok) renderMembers(body);
+}
+
+async function loadMyProfile() {
+  const { resp, body } = await call('/members/me', { headers: headers() });
+  showStatus('GET /members/me', resp, body);
+  if (resp.ok) renderMembers([body]);
+}
+
+function renderMembers(members) {
+  const tbody = document.querySelector('#membersTable tbody');
+  tbody.innerHTML = '';
+  for (const m of members) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${m.full_name}</td>
+      <td>${m.email}</td>
+      <td><code>${m.user_id}</code></td>
+      <td><span class="badge ${m.status}">${m.status}</span></td>
+      <td class="actions">
+        <button onclick="setStatus('${m.id}', 'active')">Activate</button>
+        <button onclick="setStatus('${m.id}', 'inactive')">Deactivate</button>
+        <button onclick="setStatus('${m.id}', 'blocked')">Block</button>
+        <button class="danger" onclick="deleteMember('${m.id}')">Delete</button>
+      </td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+async function createMember() {
+  const payload = {
+    user_id: $('f_user_id').value.trim(),
+    full_name: $('f_full_name').value,
+    email: $('f_email').value,
+    phone: $('f_phone').value || null,
+    address: $('f_address').value || null,
+  };
+  const { resp, body } = await call('/members', { method: 'POST', headers: headers(), body: JSON.stringify(payload) });
+  showStatus('Register member', resp, body);
+  if (resp.ok) loadMembers();
+}
+
+async function setStatus(id, status) {
+  const { resp, body } = await call(`/members/${id}/status`, {
+    method: 'PATCH',
+    headers: headers(),
+    body: JSON.stringify({ status }),
+  });
+  showStatus(`Set status → ${status}`, resp, body);
+  if (resp.ok) loadMembers();
+}
+
+async function deleteMember(id) {
+  if (!confirm('Delete this member? (admin only)')) return;
+  const { resp, body } = await call(`/members/${id}`, { method: 'DELETE', headers: headers() });
+  showStatus('Delete member', resp, body);
+  loadMembers();
+}
+</script>
+</body>
+</html>
