@@ -7,17 +7,26 @@ Create Date: 2026-06-07 00:00:00.000000
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 revision = "0001_create_members"
 down_revision = None
 branch_labels = None
 depends_on = None
 
-member_status = sa.Enum("active", "inactive", "blocked", name="memberstatus")
+# create_type=False: we manage the enum type's lifecycle ourselves below,
+# since letting SQLAlchemy auto-manage it through op.create_table double-fires
+# the CREATE TYPE DDL event under the async asyncpg driver.
+member_status = postgresql.ENUM("active", "inactive", "blocked", name="memberstatus", create_type=False)
 
 
 def upgrade() -> None:
-    member_status.create(op.get_bind(), checkfirst=True)
+    op.execute(
+        "DO $$ BEGIN "
+        "CREATE TYPE memberstatus AS ENUM ('active', 'inactive', 'blocked'); "
+        "EXCEPTION WHEN duplicate_object THEN null; "
+        "END $$;"
+    )
     op.create_table(
         "members",
         sa.Column("id", sa.Uuid(as_uuid=True), primary_key=True),
@@ -38,4 +47,4 @@ def downgrade() -> None:
     op.drop_index("ix_members_email", table_name="members")
     op.drop_index("ix_members_user_id", table_name="members")
     op.drop_table("members")
-    member_status.drop(op.get_bind(), checkfirst=True)
+    op.execute("DROP TYPE IF EXISTS memberstatus;")
