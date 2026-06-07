@@ -1,0 +1,24 @@
+version: "3.8"
+
+# Shared infrastructure — jalankan sekali sebelum semua service:
+#   cd infra && docker compose up -d
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: library-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - library-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+networks:
+  library-network:
+    external: true
+
+volumes:
+  redis-data:

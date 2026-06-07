@@ -1,0 +1,138 @@
+services:
+
+  # ── Infrastructure ────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: library-redis
+    ports: ["6379:6379"]
+    volumes: [redis-data:/data]
+    networks: [library-network]
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # ── Auth Service ──────────────────────────────────────────────────────────────
+  auth-db:
+    image: postgres:15-alpine
+    container_name: auth-db
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: auth_password_dev
+    volumes: [auth-db-data:/var/lib/postgresql/data]
+    ports: ["5433:5432"]
+    networks: [library-network]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build: services/auth
+    container_name: auth-service
+    ports: ["8001:8001"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://auth_user:auth_password_dev@auth-db:5432/auth_db
+      SECRET_KEY: dev_secret_key_change_before_production_32chars
+      REDIS_URL: redis://library-redis:6379
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks: [library-network]
+    restart: unless-stopped
+
+  # ── Book Service ──────────────────────────────────────────────────────────────
+  book-db:
+    image: postgres:15-alpine
+    container_name: db_book
+    environment:
+      POSTGRES_DB: book_db
+      POSTGRES_USER: book_user
+      POSTGRES_PASSWORD: book_pass
+    volumes: [book-db-data:/var/lib/postgresql/data]
+    ports: ["5434:5432"]
+    networks: [library-network]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U book_user -d book_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  book-service:
+    build: services/book
+    container_name: book-service
+    ports: ["8002:8002"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://book_user:book_pass@db_book:5432/book_db
+      SECRET_KEY: dev_secret_key_change_before_production_32chars
+    depends_on:
+      book-db:
+        condition: service_healthy
+    networks: [library-network]
+    restart: unless-stopped
+
+  # ── Member Service ────────────────────────────────────────────────────────────
+  member-db:
+    image: postgres:15-alpine
+    container_name: db_member
+    environment:
+      POSTGRES_DB: member_db
+      POSTGRES_USER: member_user
+      POSTGRES_PASSWORD: member_pass
+    volumes: [member-db-data:/var/lib/postgresql/data]
+    ports: ["5435:5432"]
+    networks: [library-network]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U member_user -d member_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  member-service:
+    build: services/member
+    container_name: member-service
+    ports: ["8003:8003"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://member_user:member_pass@db_member:5432/member_db
+      SECRET_KEY: dev_secret_key_change_before_production_32chars
+    depends_on:
+      member-db:
+        condition: service_healthy
+    networks: [library-network]
+    restart: unless-stopped
+
+  # ── Gateway ───────────────────────────────────────────────────────────────────
+  gateway:
+    build: gateway
+    container_name: gateway
+    ports: ["8080:8000"]
+    environment:
+      SECRET_KEY: dev_secret_key_change_before_production_32chars
+      AUTH_SERVICE_URL: http://auth-service:8001
+      BOOK_SERVICE_URL: http://book-service:8002
+      MEMBER_SERVICE_URL: http://member-service:8003
+      LOAN_SERVICE_URL: http://loan-service:8004
+      FINE_SERVICE_URL: http://fine-service:8005
+    depends_on:
+      - auth-service
+    networks: [library-network]
+    restart: unless-stopped
+
+  # ── Frontend ──────────────────────────────────────────────────────────────────
+  frontend:
+    build: frontend
+    container_name: frontend
+    ports: ["3000:3000"]
+    networks: [library-network]
+    restart: unless-stopped
+
+networks:
+  library-network:
+    driver: bridge
+    name: library-network
+
+volumes:
+  redis-data:
+  auth-db-data:
+  book-db-data:
+  member-db-data:
