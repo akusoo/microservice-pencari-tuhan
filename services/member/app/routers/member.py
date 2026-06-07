@@ -26,17 +26,13 @@ async def list_members(
 
 @router.get("/me", response_model=MemberResponse)
 async def get_my_profile(
-    user_id: str = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ):
-    return await member_service.get_member_by_user_id(db, uuid.UUID(user_id))
+    return await member_service.get_member_by_user_id(db, user_id)
 
 
-@router.get(
-    "/{member_id}",
-    response_model=MemberResponse,
-    dependencies=[Depends(require_roles("admin", "librarian"))],
-)
+@router.get("/{member_id}", response_model=MemberResponse)
 async def get_member(member_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     return await member_service.get_member(db, member_id)
 
