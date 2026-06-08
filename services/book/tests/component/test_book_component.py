@@ -1,3 +1,13 @@
+# Component tests: exercise Book Service as a whole, black-box, through its
+# real HTTP interface (FastAPI app + routers + RBAC + service + repository),
+# with only the DB swapped for in-memory SQLite (see ../conftest.py). This is
+# the layer that proves routing, validation, RBAC and business rules compose
+# correctly end-to-end *within* the service boundary — as opposed to:
+#   - tests/unit       : isolated functions/classes, no app, no DB
+#   - tests/contract   : pinned response shapes for OTHER services to depend on
+#   - tests/integration: real Postgres, proves DB-specific guarantees
+
+
 def book_payload(**overrides):
     payload = {
         "title": "Sapiens",
