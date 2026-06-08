@@ -1,7 +1,10 @@
 """
 Integration tests — POST /auth/login
 """
-from tests.conftest import VALID_USER
+import asyncio
+
+from sqlalchemy import update
+from tests.conftest import VALID_USER, TestSessionFactory
 
 
 class TestLoginSuccess:
@@ -41,11 +44,19 @@ class TestLoginFailure:
         })
         assert resp.status_code == 401
 
-    def test_inactive_user_returns_403(self, client, db):
-        from app.models import User
+    def test_inactive_user_returns_403(self, client):
+        from app.models.user import User
+
         client.post("/auth/register", json=VALID_USER)
-        db.query(User).filter(User.username == VALID_USER["username"]).update({"is_active": False})
-        db.commit()
+
+        async def _deactivate():
+            async with TestSessionFactory() as session:
+                await session.execute(
+                    update(User).where(User.username == VALID_USER["username"]).values(is_active=False)
+                )
+                await session.commit()
+
+        asyncio.run(_deactivate())
 
         resp = client.post("/auth/login", json={
             "username": VALID_USER["username"],

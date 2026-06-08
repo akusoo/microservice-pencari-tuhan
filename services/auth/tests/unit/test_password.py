@@ -1,7 +1,7 @@
 """
-Unit tests — app/utils/password.py
+Unit tests — hash/verify functions in app/core/security.py
 """
-from app.utils.password import hash_password, verify_password, hash_token
+from app.core.security import hash_password, verify_password, hash_token
 
 
 def test_hash_password_returns_bcrypt_string():
@@ -15,7 +15,6 @@ def test_hash_password_is_not_plaintext():
 
 
 def test_same_password_produces_different_hashes():
-    # bcrypt uses a random salt per call
     h1 = hash_password("same_password")
     h2 = hash_password("same_password")
     assert h1 != h2

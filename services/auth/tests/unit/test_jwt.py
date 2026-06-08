@@ -1,5 +1,5 @@
 """
-Unit tests — app/utils/jwt.py
+Unit tests — app/core/security.py (JWT functions)
 
 No DB, no HTTP. Pure function calls.
 """
@@ -7,7 +7,7 @@ import time
 import pytest
 from jose import JWTError
 
-from app.utils.jwt import create_access_token, verify_access_token
+from app.core.security import create_access_token, decode_token
 
 
 def test_create_access_token_returns_string():
@@ -16,45 +16,44 @@ def test_create_access_token_returns_string():
     assert len(token) > 0
 
 
-def test_verify_valid_token_returns_payload():
+def test_decode_valid_token_returns_payload():
     token = create_access_token("user-abc", "admin")
-    payload = verify_access_token(token)
+    payload = decode_token(token)
 
     assert payload["sub"] == "user-abc"
     assert payload["role"] == "admin"
     assert payload["type"] == "access"
 
 
-def test_verify_token_contains_exp():
+def test_decoded_token_contains_future_exp():
     token = create_access_token("user-xyz", "member")
-    payload = verify_access_token(token)
+    payload = decode_token(token)
     assert "exp" in payload
-    # expiry must be in the future
     assert payload["exp"] > time.time()
 
 
-def test_verify_tampered_token_raises():
+def test_tampered_token_raises():
     token = create_access_token("user-123", "member")
     bad_token = token[:-4] + "xxxx"
     with pytest.raises(JWTError):
-        verify_access_token(bad_token)
+        decode_token(bad_token)
 
 
-def test_verify_wrong_type_raises():
-    """A token manually crafted without type='access' must be rejected."""
+def test_wrong_type_raises():
+    """Token with type='refresh' must be rejected by decode_token."""
     from datetime import datetime, timedelta, timezone
     from jose import jwt
-    from app.config import settings
+    from app.core.config import settings
 
     payload = {
         "sub": "user-123",
         "role": "member",
         "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
-        "type": "refresh",  # wrong type
+        "type": "refresh",
     }
     bad_token = jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
     with pytest.raises(JWTError):
-        verify_access_token(bad_token)
+        decode_token(bad_token)
 
 
 def test_different_users_produce_different_tokens():

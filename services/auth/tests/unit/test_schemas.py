@@ -1,10 +1,10 @@
 """
-Unit tests — app/schemas.py (Pydantic validation)
+Unit tests — Pydantic validation in app/schemas/auth.py
 """
 import pytest
 from pydantic import ValidationError
 
-from app.schemas import UserRegister, UserLogin
+from app.schemas.auth import UserRegister, UserLogin
 
 
 class TestUserRegister:
@@ -34,4 +34,4 @@ class TestUserLogin:
 
     def test_missing_username_raises(self):
         with pytest.raises(ValidationError):
-            UserLogin(password="mypassword")  # no username
+            UserLogin(password="mypassword")
