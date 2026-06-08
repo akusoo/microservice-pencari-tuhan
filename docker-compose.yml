@@ -101,6 +101,70 @@ services:
     networks: [library-network]
     restart: unless-stopped
 
+  # ── Loan Service ──────────────────────────────────────────────────────────────
+  loan-db:
+    image: postgres:15-alpine
+    container_name: db_loan
+    environment:
+      POSTGRES_DB: loan_db
+      POSTGRES_USER: loan_user
+      POSTGRES_PASSWORD: loan_pass
+    volumes: [loan-db-data:/var/lib/postgresql/data]
+    ports: ["5436:5432"]
+    networks: [library-network]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U loan_user -d loan_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  loan-service:
+    build: services/loan
+    container_name: loan-service
+    ports: ["8004:8004"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://loan_user:loan_pass@db_loan:5432/loan_db
+      SECRET_KEY: dev_secret_key_change_before_production_32chars
+      BOOK_SERVICE_URL: http://book-service:8002
+      MEMBER_SERVICE_URL: http://member-service:8003
+      FINE_SERVICE_URL: http://fine-service:8005
+    depends_on:
+      loan-db:
+        condition: service_healthy
+    networks: [library-network]
+    restart: unless-stopped
+
+  # ── Fine Service ──────────────────────────────────────────────────────────────
+  fine-db:
+    image: postgres:15-alpine
+    container_name: db_fine
+    environment:
+      POSTGRES_DB: fine_db
+      POSTGRES_USER: fine_user
+      POSTGRES_PASSWORD: fine_pass
+    volumes: [fine-db-data:/var/lib/postgresql/data]
+    ports: ["5437:5432"]
+    networks: [library-network]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fine_user -d fine_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  fine-service:
+    build: services/fine
+    container_name: fine-service
+    ports: ["8005:8005"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://fine_user:fine_pass@db_fine:5432/fine_db
+      SECRET_KEY: dev_secret_key_change_before_production_32chars
+      MEMBER_SERVICE_URL: http://member-service:8003
+    depends_on:
+      fine-db:
+        condition: service_healthy
+    networks: [library-network]
+    restart: unless-stopped
+
   # ── Gateway ───────────────────────────────────────────────────────────────────
   gateway:
     build: gateway
@@ -115,6 +179,8 @@ services:
       FINE_SERVICE_URL: http://fine-service:8005
     depends_on:
       - auth-service
+      - loan-service
+      - fine-service
     networks: [library-network]
     restart: unless-stopped
 
@@ -136,3 +202,5 @@ volumes:
   auth-db-data:
   book-db-data:
   member-db-data:
+  loan-db-data:
+  fine-db-data:
