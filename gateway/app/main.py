@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from app.routers.proxy import router as proxy_router
 from app.middleware.logging import RequestLoggingMiddleware, setup_logger
 from app.circuit_breaker import get_all_breakers
@@ -11,6 +12,10 @@ app = FastAPI(
     description="Library Microservice API Gateway — single entry point",
     version="1.0.0",
 )
+
+# Exposes GET /metrics (Prometheus format): request count, latency and status
+# code per route — no logging involved, just counters/histograms scraped by Prometheus.
+Instrumentator().instrument(app).expose(app)
 
 app.add_middleware(RequestLoggingMiddleware, logger=logger)
 app.add_middleware(
