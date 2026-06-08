@@ -6,6 +6,7 @@ asyncpg==0.29.0
 alembic==1.13.1
 httpx==0.27.0
 email-validator==2.1.1
+python-jose[cryptography]==3.3.0
 prometheus-fastapi-instrumentator==7.0.0
 
 # Test deps (in-memory SQLite, never used outside pytest)

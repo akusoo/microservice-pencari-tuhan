@@ -34,6 +34,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://auth_user:auth_password_dev@auth-db:5432/auth_db
       SECRET_KEY: dev_secret_key_change_before_production_32chars
+      INTERNAL_SERVICE_KEY: internal_svc_key_change_before_production
       REDIS_URL: redis://library-redis:6379
     depends_on:
       auth-db:
@@ -65,6 +66,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://book_user:book_pass@db_book:5432/book_db
       SECRET_KEY: dev_secret_key_change_before_production_32chars
+      INTERNAL_SERVICE_KEY: internal_svc_key_change_before_production
     depends_on:
       book-db:
         condition: service_healthy
@@ -95,6 +97,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://member_user:member_pass@db_member:5432/member_db
       SECRET_KEY: dev_secret_key_change_before_production_32chars
+      INTERNAL_SERVICE_KEY: internal_svc_key_change_before_production
     depends_on:
       member-db:
         condition: service_healthy
@@ -125,6 +128,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://loan_user:loan_pass@db_loan:5432/loan_db
       SECRET_KEY: dev_secret_key_change_before_production_32chars
+      INTERNAL_SERVICE_KEY: internal_svc_key_change_before_production
       BOOK_SERVICE_URL: http://book-service:8002
       MEMBER_SERVICE_URL: http://member-service:8003
       FINE_SERVICE_URL: http://fine-service:8005
@@ -158,6 +162,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://fine_user:fine_pass@db_fine:5432/fine_db
       SECRET_KEY: dev_secret_key_change_before_production_32chars
+      INTERNAL_SERVICE_KEY: internal_svc_key_change_before_production
       MEMBER_SERVICE_URL: http://member-service:8003
     depends_on:
       fine-db:

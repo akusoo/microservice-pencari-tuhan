@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     secret_key: str
     algorithm: str = "HS256"
+    internal_service_key: str = "changeme"
 
     auth_service_url: str = "http://auth-service:8001"
     book_service_url: str = "http://book-service:8002"

@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import require_roles
+from app.core.security import get_auth_context, require_roles
 from app.db.session import get_db
 from app.schemas.book import BookCreate, BookResponse, BookUpdate, StockUpdate
 from app.services import book_service
@@ -63,6 +63,10 @@ async def delete_book(book_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     await book_service.delete_book(db, book_id)
 
 
-@router.patch("/{book_id}/stock", response_model=BookResponse)
+@router.patch(
+    "/{book_id}/stock",
+    response_model=BookResponse,
+    dependencies=[Depends(get_auth_context)],
+)
 async def update_stock(book_id: uuid.UUID, data: StockUpdate, db: AsyncSession = Depends(get_db)):
     return await book_service.update_stock(db, book_id, data)

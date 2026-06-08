@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients import member_client
-from app.core.security import get_current_user_id, require_roles
+from app.core.security import get_auth_context, get_current_user_id, require_roles
 from app.db.session import get_db
 from app.schemas.fine import FineCreate, FineResponse
 from app.services import fine_service
@@ -12,7 +12,12 @@ from app.services import fine_service
 router = APIRouter(prefix="/fines", tags=["fines"])
 
 
-@router.post("", response_model=FineResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=FineResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(get_auth_context)],
+)
 async def create_fine(data: FineCreate, db: AsyncSession = Depends(get_db)):
     return await fine_service.create_fine(db, data)
 
