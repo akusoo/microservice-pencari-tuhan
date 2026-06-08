@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library Microservice — Demo Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sb:220px;--acc:#58a6ff;--sur:#fff;--bg:#f0f2f5;--bdr:#d0d7de;
+  --tx:#24292f;--txm:#656d76;--r:8px;
+  --ok:#1a7f37;--ok-bg:#dafbe1;--err:#cf222e;--err-bg:#ffebe9;
+  --warn:#9a6700;--warn-bg:#fff8c5;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:var(--bg);color:var(--tx);display:flex;min-height:100vh;font-size:14px}
+
+/* ─── Sidebar ─────────────────────────────────────────── */
+#sb{width:var(--sb);background:#0d1117;color:#cdd9e5;display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;bottom:0;overflow-y:auto;z-index:20}
+.sb-logo{padding:18px 16px 14px;font-size:15px;font-weight:700;color:#e6edf3;
+  border-bottom:1px solid #21262d}
+.sb-logo span{color:var(--acc)}
+.sb-sec{padding:6px 0;border-bottom:1px solid #21262d}
+.sb-lbl{padding:8px 16px 3px;font-size:10px;text-transform:uppercase;
+  letter-spacing:.9px;color:#7d8590;font-weight:600}
+.ni{display:flex;align-items:center;gap:8px;padding:7px 16px;cursor:pointer;
+  color:#cdd9e5;border-left:3px solid transparent;transition:all .12s;font-size:13px}
+.ni:hover{background:#161b22;color:#e6edf3}
+.ni.on{background:#161b22;color:var(--acc);border-left-color:var(--acc)}
+.ni .ic{font-size:15px;flex-shrink:0}
+.dot{width:7px;height:7px;border-radius:50%;margin-left:auto;background:#3d444d;flex-shrink:0}
+.dot.up{background:#3fb950}.dot.dn{background:#f85149}
+.dot.chk{background:#d29922;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sb-gw{padding:10px 12px 16px}
+.sb-gw label{display:block;font-size:10px;text-transform:uppercase;
+  letter-spacing:.8px;color:#7d8590;margin-bottom:5px}
+.sb-gw input{width:100%;background:#161b22;border:1px solid #30363d;border-radius:5px;
+  color:#e6edf3;padding:5px 8px;font-size:11px;outline:none}
+.sb-gw input:focus{border-color:var(--acc)}
+
+/* ─── Main ────────────────────────────────────────────── */
+#main{margin-left:var(--sb);flex:1;display:flex;flex-direction:column;min-height:100vh}
+#topbar{background:var(--sur);border-bottom:1px solid var(--bdr);padding:0 20px;
+  height:50px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+.tb-title{font-weight:600;font-size:15px;flex:1}
+.ub{display:flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--bdr);
+  border-radius:20px;padding:4px 12px;font-size:12px;color:var(--txm)}
+.ub.in{color:var(--ok);border-color:#aff3c0;background:var(--ok-bg)}
+#content{padding:20px;flex:1}
+
+/* ─── Sections ────────────────────────────────────────── */
+.sec{display:none}.sec.on{display:block}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px}
+.pt{font-size:18px;font-weight:700}.ps{font-size:12px;color:var(--txm);margin-top:3px}
+
+/* ─── Cards ───────────────────────────────────────────── */
+.card{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);
+  padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.ct{font-size:13px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+
+/* ─── Grid ────────────────────────────────────────────── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:900px){.g4{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr}}
+
+/* ─── Forms ───────────────────────────────────────────── */
+.fg{margin-bottom:11px}
+.fg label{display:block;font-size:11px;font-weight:600;margin-bottom:4px;color:var(--txm);
+  text-transform:uppercase;letter-spacing:.4px}
+.fg input,.fg select,.fg textarea{width:100%;border:1px solid var(--bdr);border-radius:6px;
+  padding:7px 10px;font-size:13px;outline:none;font-family:inherit;color:var(--tx);
+  background:var(--sur);transition:border-color .12s}
+.fg input:focus,.fg select:focus{border-color:var(--acc)}
+.fi-row{display:flex;gap:6px}.fi-row input{flex:1}
+
+/* ─── Buttons ─────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:6px;
+  font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;
+  transition:all .12s;font-family:inherit}
+.btn-p{background:#1f6feb;color:#fff;border-color:#1f6feb}
+.btn-p:hover{background:#388bfd}
+.btn-s{background:#27ae60;color:#fff;border-color:#238636}
+.btn-s:hover{background:#2ea043}
+.btn-d{background:#da3633;color:#fff;border-color:#da3633}
+.btn-d:hover{background:#f85149}
+.btn-o{background:var(--bg);color:var(--tx);border-color:var(--bdr)}
+.btn-o:hover{background:#e7ecf0}
+.btn-sm{padding:4px 10px;font-size:12px}
+.bg{display:flex;gap:7px;flex-wrap:wrap}
+
+/* ─── Tables ──────────────────────────────────────────── */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:var(--bg);padding:8px 10px;text-align:left;font-size:11px;
+  font-weight:600;color:var(--txm);border-bottom:1px solid var(--bdr)}
+tbody td{padding:9px 10px;border-bottom:1px solid #f0f2f5;vertical-align:middle}
+tbody tr:hover td{background:#f6f8fa}
+tbody tr:last-child td{border-bottom:none}
+
+/* ─── Badges & Tags ───────────────────────────────────── */
+.b{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.bg-g{background:var(--ok-bg);color:var(--ok)}
+.bg-r{background:var(--err-bg);color:var(--err)}
+.bg-y{background:var(--warn-bg);color:var(--warn)}
+.bg-b{background:#ddf4ff;color:#0969da}
+.bg-x{background:#f6f8fa;color:var(--txm)}
+
+/* ─── Alerts ──────────────────────────────────────────── */
+.al{padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:12px}
+.al-s{background:var(--ok-bg);color:var(--ok);border:1px solid #aff3c0}
+.al-e{background:var(--err-bg);color:var(--err);border:1px solid #ffcecb}
+.al-i{background:#ddf4ff;color:#0969da;border:1px solid #b6e3ff}
+
+/* ─── Tabs ────────────────────────────────────────────── */
+.tabs{display:flex;border-bottom:1px solid var(--bdr);margin-bottom:14px}
+.tab{padding:7px 14px;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;
+  margin-bottom:-1px;color:var(--txm);transition:all .12s}
+.tab:hover{color:var(--tx)}.tab.on{color:var(--acc);border-bottom-color:var(--acc);font-weight:500}
+
+/* ─── Service health card ─────────────────────────────── */
+.shc{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);
+  padding:14px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.shc-ic{font-size:22px;margin-bottom:4px}
+.shc-nm{font-weight:600;font-size:13px}
+.shc-pt{font-size:11px;color:var(--txm);margin-bottom:7px}
+.shc-st{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;
+  border-radius:20px;font-size:11px;font-weight:600}
+.shc-st.up{background:var(--ok-bg);color:var(--ok)}
+.shc-st.dn{background:var(--err-bg);color:var(--err)}
+.shc-st.chk{background:var(--warn-bg);color:var(--warn)}
+.shc-ms{font-size:10px;color:var(--txm);margin-top:5px}
+
+/* ─── Circuit breaker card ────────────────────────────── */
+.cbc{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);
+  padding:12px 14px;display:flex;align-items:center;gap:11px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.cb-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.cb-dot.closed{background:#3fb950}.cb-dot.open{background:#f85149}
+.cb-dot.half-open{background:#d29922}
+.cb-nm{font-weight:600;font-size:13px}
+.cb-dt{font-size:11px;color:var(--txm)}
+
+/* ─── Metric card ─────────────────────────────────────── */
+.mc{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);
+  padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.mc-lbl{font-size:11px;color:var(--txm)}
+.mc-val{font-size:26px;font-weight:700;color:var(--tx);margin:3px 0}
+.mc-sub{font-size:11px;color:var(--txm)}
+
+/* ─── Console ─────────────────────────────────────────── */
+#con{background:var(--sur);border-top:1px solid var(--bdr);flex-shrink:0}
+#con-hdr{display:flex;align-items:center;padding:9px 16px;background:#f6f8fa;
+  border-bottom:1px solid var(--bdr);gap:10px}
+.con-ttl{font-size:13px;font-weight:600;flex:1}
+#con-log{height:180px;overflow-y:auto;background:#0d1117;
+  font-family:"SF Mono","Fira Code",Consolas,monospace;font-size:11.5px}
+.le{padding:3px 14px;line-height:1.6;display:flex;gap:9px;cursor:default}
+.le:hover{background:#161b22}
+.lt{color:#7d8590;flex-shrink:0;min-width:68px}
+.lm{font-weight:700;flex-shrink:0;min-width:48px}
+.lu{color:#cdd9e5;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ls{flex-shrink:0;min-width:70px}
+.lm.GET{color:#79c0ff}.lm.POST{color:#7ee787}
+.lm.PATCH,.lm.PUT{color:#e3b341}.lm.DELETE{color:#f85149}
+.ls.ok{color:#3fb950}.ls.er{color:#f85149}
+.lb{color:#7d8590;font-size:10.5px;grid-column:2/-1;padding:0 14px 3px 91px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+
+/* ─── Code block ──────────────────────────────────────── */
+pre.cb{background:#0d1117;color:#e6edf3;border-radius:6px;padding:12px 14px;
+  font-size:11.5px;overflow:auto;font-family:"SF Mono",Consolas,monospace;
+  max-height:280px;border:1px solid #30363d}
+
+/* ─── Toggle ──────────────────────────────────────────── */
+.tgl{width:32px;height:18px;background:#d0d7de;border-radius:9px;position:relative;
+  cursor:pointer;border:none;transition:background .2s;flex-shrink:0}
+.tgl.on{background:#238636}
+.tgl::after{content:'';position:absolute;width:14px;height:14px;background:#fff;
+  border-radius:50%;top:2px;left:2px;transition:transform .2s}
+.tgl.on::after{transform:translateX(14px)}
+
+/* ─── Misc ────────────────────────────────────────────── */
+.empty{text-align:center;padding:32px;color:var(--txm);font-size:13px}
+.mono{font-family:"SF Mono",Consolas,monospace;font-size:11px}
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(0,0,0,.1);
+  border-top-color:var(--acc);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+input[type="number"]{-moz-appearance:textfield}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none}
+
+/* ─── Workflow steps ──────────────────────────────────── */
+.step{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--bg)}
+.step:last-child{border-bottom:none}
+.step-num{width:22px;height:22px;border-radius:50%;background:var(--acc);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.step-body{flex:1}
+.step-title{font-weight:600;font-size:13px}
+.step-desc{font-size:11px;color:var(--txm);margin-top:2px}
+
+/* ─── CORS notice ─────────────────────────────────────── */
+#cors-notice{background:#fff8c5;border:1px solid #e3b341;border-radius:6px;
+  padding:10px 14px;font-size:12px;color:#9a6700;margin-bottom:14px}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════
+     SIDEBAR
+════════════════════════════════════════════════════════ -->
+<nav id="sb">
+  <div class="sb-logo">📚 Library<span>MS</span></div>
+
+  <div class="sb-sec">
+    <div class="sb-lbl">Demo</div>
+    <div class="ni on" id="ni-dashboard" onclick="nav('dashboard')"><span class="ic">🏠</span>Dashboard</div>
+    <div class="ni" id="ni-auth" onclick="nav('auth')"><span class="ic">🔐</span>Authentication</div>
+  </div>
+
+  <div class="sb-sec">
+    <div class="sb-lbl">Services</div>
+    <div class="ni" id="ni-books" onclick="nav('books')">
+      <span class="ic">📚</span>Books<span class="dot chk" id="dot-book"></span>
+    </div>
+    <div class="ni" id="ni-members" onclick="nav('members')">
+      <span class="ic">👥</span>Members<span class="dot chk" id="dot-member"></span>
+    </div>
+    <div class="ni" id="ni-loans" onclick="nav('loans')">
+      <span class="ic">📋</span>Loans<span class="dot chk" id="dot-loan"></span>
+    </div>
+    <div class="ni" id="ni-fines" onclick="nav('fines')">
+      <span class="ic">💰</span>Fines<span class="dot chk" id="dot-fine"></span>
+    </div>
+  </div>
+
+  <div class="sb-sec">
+    <div class="sb-lbl">System</div>
+    <div class="ni" id="ni-monitor" onclick="nav('monitor')">
+      <span class="ic">📊</span>Monitor
+    </div>
+  </div>
+
+  <div style="flex:1"></div>
+  <div class="sb-gw">
+    <label>Gateway URL</label>
+    <input id="gatewayUrl" value="http://localhost:8080" placeholder="http://localhost:8080">
+  </div>
+</nav>
+
+<!-- ════════════════════════════════════════════════════════
+     MAIN
+════════════════════════════════════════════════════════ -->
+<div id="main">
+
+  <!-- Topbar -->
+  <header id="topbar">
+    <div class="tb-title" id="tb-title">Dashboard</div>
+    <div class="ub" id="user-badge">Not logged in</div>
+    <button class="btn btn-o btn-sm" onclick="refreshCurrent()">↻ Refresh</button>
+  </header>
+
+  <!-- Content -->
+  <div id="content">
+
+    <!-- ── DASHBOARD ─────────────────────────────────── -->
+    <section id="sec-dashboard" class="sec on">
+      <div class="ph">
+        <div><div class="pt">Dashboard</div><div class="ps">Library Microservice System Overview</div></div>
+        <button class="btn btn-o btn-sm" onclick="refreshDashboard()">↻ Refresh</button>
+      </div>
+
+      <div id="cors-notice">
+        ⚠️ <strong>CORS:</strong> Serve this file via
+        <strong>VS Code Live Server</strong> (<code>localhost:5500</code>) or
+        <code>python -m http.server 5500</code> from the <code>demo-ui/</code> folder —
+        not via <code>file://</code>. The gateway allows <code>localhost:5500</code> as an origin.
+      </div>
+
+      <!-- Service health mini-grid -->
+      <div class="g4" id="dash-svc" style="margin-bottom:18px"></div>
+
+      <!-- Workflow + stats -->
+      <div class="g2">
+        <div class="card">
+          <div class="ct">🎯 Demo Workflow</div>
+          <div class="step"><div class="step-num">1</div>
+            <div class="step-body"><div class="step-title">Login via Auth</div>
+            <div class="step-desc">Go to Authentication → use Quick Fill, then Login</div></div></div>
+          <div class="step"><div class="step-num">2</div>
+            <div class="step-body"><div class="step-title">Add a Book</div>
+            <div class="step-desc">Go to Books → click "Add Book", fill the form</div></div></div>
+          <div class="step"><div class="step-num">3</div>
+            <div class="step-body"><div class="step-title">Create Member Profile</div>
+            <div class="step-desc">Go to Members → Add Member (use User ID from Auth)</div></div></div>
+          <div class="step"><div class="step-num">4</div>
+            <div class="step-body"><div class="step-title">Create a Loan</div>
+            <div class="step-desc">Go to Loans → New Loan (copy Book ID &amp; Member ID)</div></div></div>
+          <div class="step"><div class="step-num">5</div>
+            <div class="step-body"><div class="step-title">Return the Book</div>
+            <div class="step-desc">Go to Loans → My Loans → click Return</div></div></div>
+          <div class="step"><div class="step-num">6</div>
+            <div class="step-body"><div class="step-title">Check Fines &amp; Monitor</div>
+            <div class="step-desc">Fines section for overdue charges, Monitor for health</div></div></div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="ct">ℹ️ Architecture</div>
+            <div style="font-size:12px;line-height:1.7;color:var(--txm)">
+              All requests go through the <strong style="color:var(--tx)">API Gateway</strong> at
+              <code>:8080</code> which validates JWT and forwards
+              <code>X-User-ID</code> + <code>X-User-Role</code> to downstream services.<br><br>
+              Services: <strong style="color:var(--tx)">Auth</strong> (:8001) ·
+              <strong style="color:var(--tx)">Book</strong> (:8002) ·
+              <strong style="color:var(--tx)">Member</strong> (:8003) ·
+              <strong style="color:var(--tx)">Loan</strong> (:8004) ·
+              <strong style="color:var(--tx)">Fine</strong> (:8005)
+            </div>
+          </div>
+          <div class="card">
+            <div class="ct">🔑 Test Credentials</div>
+            <div style="font-size:12px;line-height:2;color:var(--txm)">
+              Register a user first if no accounts exist:<br>
+              Role <span class="b bg-b">admin</span> — full access to all endpoints<br>
+              Role <span class="b bg-y">librarian</span> — manage books, members, loans<br>
+              Role <span class="b bg-g">member</span> — borrow books, view own data
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── AUTH ──────────────────────────────────────── -->
+    <section id="sec-auth" class="sec">
+      <div class="ph">
+        <div><div class="pt">Authentication</div><div class="ps">Login, register, and manage your session</div></div>
+      </div>
+      <div id="auth-alert"></div>
+      <div class="g2">
+        <div class="card">
+          <div class="ct">🔑 Login</div>
+          <div class="fg"><label>Username</label><input type="text" id="li-username" placeholder="admin"></div>
+          <div class="fg"><label>Password</label><input type="password" id="li-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+          <div class="bg" style="margin-top:4px">
+            <button class="btn btn-p" onclick="doLogin()">Login</button>
+            <button class="btn btn-o" onclick="qfill('admin')">Quick Fill Admin</button>
+            <button class="btn btn-o" onclick="qfill('member')">Quick Fill Member</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ct">📝 Register New User</div>
+          <div class="fg"><label>Username</label><input id="rg-user" placeholder="johndoe"></div>
+          <div class="fg"><label>Email</label><input type="email" id="rg-email" placeholder="john@example.com"></div>
+          <div class="fg"><label>Password <span style="font-weight:400;color:var(--txm)">(min 8 karakter)</span></label>
+            <input type="password" id="rg-pw" placeholder="min 8 chars"></div>
+          <button class="btn btn-s" onclick="doRegister()">Register</button>
+        </div>
+      </div>
+      <div class="card" id="user-card" style="display:none">
+        <div class="ct">👤 Current Session</div>
+        <div id="user-info"></div>
+        <div class="bg" style="margin-top:12px">
+          <button class="btn btn-o" onclick="loadMe()">↻ Refresh</button>
+          <button class="btn btn-d" onclick="doLogout()">Logout</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── BOOKS ─────────────────────────────────────── -->
+    <section id="sec-books" class="sec">
+      <div class="ph">
+        <div><div class="pt">Books</div><div class="ps">Manage the book catalog via gateway</div></div>
+        <button class="btn btn-p btn-sm" onclick="toggleCard('create-book-card')">+ Add Book</button>
+      </div>
+      <div id="books-alert"></div>
+      <div class="card" id="create-book-card" style="display:none">
+        <div class="ct">➕ Create Book <span style="font-size:11px;font-weight:400;color:var(--txm)">(requires admin or librarian role)</span></div>
+        <div class="g2">
+          <div class="fg"><label>Title</label><input id="bk-title" value="Sapiens"></div>
+          <div class="fg"><label>Author</label><input id="bk-author" value="Yuval Noah Harari"></div>
+          <div class="fg"><label>ISBN</label><input id="bk-isbn" value="9780062316097"></div>
+          <div class="fg"><label>Publisher</label><input id="bk-pub" value="Harper"></div>
+          <div class="fg"><label>Category</label><input id="bk-cat" value="history"></div>
+          <div class="fg"><label>Year</label><input id="bk-year" type="number" value="2015"></div>
+        </div>
+        <div class="fg"><label>Description</label><input id="bk-desc" value="A brief history of humankind"></div>
+        <div class="fg" style="max-width:160px"><label>Total Copies</label><input id="bk-copies" type="number" value="3"></div>
+        <div class="bg" style="margin-top:4px">
+          <button class="btn btn-s" onclick="createBook()">Create Book</button>
+          <button class="btn btn-o" onclick="toggleCard('create-book-card')">Cancel</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ct">🔍 Search</div>
+        <div style="display:flex;gap:8px">
+          <input id="bk-q" placeholder="Title, author, or category…" onkeydown="if(event.key==='Enter')loadBooks()"
+            style="flex:1;border:1px solid var(--bdr);border-radius:6px;padding:7px 10px;font-size:13px;outline:none">
+          <button class="btn btn-o" onclick="loadBooks()">Search</button>
+          <button class="btn btn-o" onclick="document.getElementById('bk-q').value='';loadBooks()">All</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ct">📚 Book Catalog</div>
+        <div class="tw">
+          <table><thead><tr>
+            <th>Title</th><th>Author</th><th>Category</th><th>ISBN</th><th>Yr</th><th>Stock</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="bk-tbody"><tr><td colspan="7" class="empty">Click All or Search to load books</td></tr></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── MEMBERS ───────────────────────────────────── -->
+    <section id="sec-members" class="sec">
+      <div class="ph">
+        <div><div class="pt">Members</div><div class="ps">Manage library member profiles</div></div>
+        <div class="bg">
+          <button class="btn btn-o btn-sm" onclick="loadMyProfile()">👤 My Profile</button>
+          <button class="btn btn-p btn-sm" onclick="toggleCard('create-member-card')">+ Add Member</button>
+        </div>
+      </div>
+      <div id="members-alert"></div>
+      <div class="card" id="my-profile-card" style="display:none">
+        <div class="ct">👤 My Member Profile</div>
+        <div id="my-profile"></div>
+      </div>
+      <div class="card" id="create-member-card" style="display:none">
+        <div class="ct">➕ Create Member <span style="font-size:11px;font-weight:400;color:var(--txm)">(requires admin or librarian)</span></div>
+        <div class="g2">
+          <div class="fg">
+            <label>User ID <span style="color:var(--err)">*</span></label>
+            <div class="fi-row">
+              <input id="mb-uid" placeholder="UUID from Auth service">
+              <button class="btn btn-o btn-sm" onclick="fillUserId()">My ID</button>
+            </div>
+          </div>
+          <div class="fg"><label>Full Name</label><input id="mb-name" value="Budi Santoso"></div>
+          <div class="fg"><label>Email</label><input type="email" id="mb-email" value="budi@example.com"></div>
+          <div class="fg"><label>Phone</label><input id="mb-phone" value="081234567890"></div>
+        </div>
+        <div class="fg"><label>Address</label><input id="mb-addr" value="Jl. Merdeka No. 1, Jakarta Pusat"></div>
+        <div class="bg" style="margin-top:4px">
+          <button class="btn btn-s" onclick="createMember()">Create Member</button>
+          <button class="btn btn-o" onclick="toggleCard('create-member-card')">Cancel</button>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="ct" style="margin:0">👥 All Members</div>
+          <button class="btn btn-o btn-sm" onclick="loadMembers()">Load Members</button>
+        </div>
+        <div class="tw">
+          <table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Member ID</th><th>Actions</th></tr></thead>
+          <tbody id="mb-tbody"><tr><td colspan="6" class="empty">Click Load Members to fetch</td></tr></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── LOANS ─────────────────────────────────────── -->
+    <section id="sec-loans" class="sec">
+      <div class="ph">
+        <div><div class="pt">Loans</div><div class="ps">Book lending management</div></div>
+        <button class="btn btn-p btn-sm" onclick="toggleCard('create-loan-card')">+ New Loan</button>
+      </div>
+      <div id="loans-alert"></div>
+      <div class="card" id="create-loan-card" style="display:none">
+        <div class="ct">📋 Create Loan</div>
+        <div class="g2">
+          <div class="fg">
+            <label>Book ID <span style="color:var(--err)">*</span></label>
+            <input id="ln-bid" placeholder="Paste UUID from Books table">
+          </div>
+          <div class="fg">
+            <label>Member ID <span style="color:var(--err)">*</span></label>
+            <div class="fi-row">
+              <input id="ln-mid" placeholder="Paste UUID from Members table">
+              <button class="btn btn-o btn-sm" onclick="fillMyMemberId()">My ID</button>
+            </div>
+          </div>
+        </div>
+        <div class="bg" style="margin-top:4px">
+          <button class="btn btn-s" onclick="createLoan()">Create Loan</button>
+          <button class="btn btn-o" onclick="toggleCard('create-loan-card')">Cancel</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="tabs">
+          <div class="tab on" id="lt-my" onclick="switchLoanTab('my')">My Loans</div>
+          <div class="tab" id="lt-all" onclick="switchLoanTab('all')">All Loans</div>
+          <div class="tab" id="lt-ov" onclick="switchLoanTab('overdue')">Overdue</div>
+        </div>
+        <div id="loans-wrap"><div class="empty">Select a tab to load loans</div></div>
+      </div>
+    </section>
+
+    <!-- ── FINES ─────────────────────────────────────── -->
+    <section id="sec-fines" class="sec">
+      <div class="ph">
+        <div><div class="pt">Fines</div><div class="ps">Overdue fine management</div></div>
+      </div>
+      <div id="fines-alert"></div>
+      <div class="card">
+        <div class="tabs">
+          <div class="tab on" id="ft-my" onclick="switchFineTab('my')">My Fines</div>
+          <div class="tab" id="ft-all" onclick="switchFineTab('all')">All Fines</div>
+          <div class="tab" id="ft-un" onclick="switchFineTab('unpaid')">Unpaid</div>
+        </div>
+        <div id="fines-wrap"><div class="empty">Select a tab to load fines</div></div>
+      </div>
+    </section>
+
+    <!-- ── MONITOR ───────────────────────────────────── -->
+    <section id="sec-monitor" class="sec">
+      <div class="ph">
+        <div><div class="pt">System Monitor</div><div class="ps">Service health, circuit breakers &amp; Prometheus metrics</div></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:12px;color:var(--txm)">Auto-refresh</span>
+          <button class="tgl" id="ar-btn" onclick="toggleAutoRefresh()"></button>
+          <button class="btn btn-o btn-sm" onclick="checkAllHealth();loadCircuitBreakers()">↻ Now</button>
+        </div>
+      </div>
+
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px">🟢 Service Health</div>
+      <div class="g3" id="health-cards" style="margin-bottom:20px"></div>
+
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px">⚡ Circuit Breakers <span style="font-size:11px;font-weight:400;color:var(--txm)">(from gateway)</span></div>
+      <div class="g2" id="cb-cards" style="margin-bottom:20px">
+        <div class="empty" style="padding:14px">Loading…</div>
+      </div>
+
+      <div class="card">
+        <div class="ct">📈 Prometheus Metrics</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <select id="met-svc" style="border:1px solid var(--bdr);border-radius:6px;padding:6px 10px;font-size:13px;outline:none">
+            <option value="http://localhost:8080">API Gateway (:8080)</option>
+            <option value="http://localhost:8001">Auth Service (:8001)</option>
+            <option value="http://localhost:8002">Book Service (:8002)</option>
+            <option value="http://localhost:8003">Member Service (:8003)</option>
+            <option value="http://localhost:8004">Loan Service (:8004)</option>
+            <option value="http://localhost:8005">Fine Service (:8005)</option>
+          </select>
+          <button class="btn btn-o" onclick="loadMetrics()">Fetch Metrics</button>
+        </div>
+        <pre class="cb" id="met-out">Select a service and click Fetch Metrics.</pre>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+
+  <!-- Console -->
+  <div id="con">
+    <div id="con-hdr">
+      <span class="con-ttl">🔌 Request Log</span>
+      <span id="con-cnt" style="font-size:11px;color:#7d8590">0 requests</span>
+      <button class="btn btn-o btn-sm" onclick="clearLog()">Clear</button>
+      <button class="btn btn-o btn-sm" id="con-tog" onclick="toggleConsole()">▲ Collapse</button>
+    </div>
+    <div id="con-log"></div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONFIG & STATE
+// ═══════════════════════════════════════════════════════════
+const SVCS = [
+  {key:'gateway', name:'API Gateway',     port:8080, url:'http://localhost:8080', ic:'🌐'},
+  {key:'auth',    name:'Auth Service',    port:8001, url:'http://localhost:8001', ic:'🔐'},
+  {key:'book',    name:'Book Service',    port:8002, url:'http://localhost:8002', ic:'📚'},
+  {key:'member',  name:'Member Service',  port:8003, url:'http://localhost:8003', ic:'👥'},
+  {key:'loan',    name:'Loan Service',    port:8004, url:'http://localhost:8004', ic:'📋'},
+  {key:'fine',    name:'Fine Service',    port:8005, url:'http://localhost:8005', ic:'💰'},
+];
+
+const S = {
+  token: localStorage.getItem('demo_token') || null,
+  user:  JSON.parse(localStorage.getItem('demo_user') || 'null'),
+  myMemberId: null,
+  autoRefresh: false,
+  arTimer: null,
+  loanTab: 'my',
+  fineTab: 'my',
+  cur: 'dashboard',
+  logCount: 0,
+  conCollapsed: false,
+};
+
+// ═══════════════════════════════════════════════════════════
+// API HELPERS
+// ═══════════════════════════════════════════════════════════
+function gw() { return document.getElementById('gatewayUrl').value.trim().replace(/\/$/,''); }
+
+async function api(method, path, data=null) {
+  const url = gw() + path;
+  const hdrs = {'Content-Type':'application/json'};
+  if (S.token) hdrs['Authorization'] = 'Bearer ' + S.token;
+  const opts = {method, headers:hdrs, credentials:'include'};
+  if (data) opts.body = JSON.stringify(data);
+  const t0 = Date.now();
+  try {
+    const r = await fetch(url, opts);
+    const ms = Date.now()-t0;
+    let body=null;
+    try { body = await r.json(); } catch(_){}
+    addLog(method, path, r.status, ms, body);
+    return {ok:r.ok, status:r.status, body};
+  } catch(e) {
+    addLog(method, path, 0, Date.now()-t0, {error:e.message});
+    return {ok:false, status:0, body:{error:e.message}};
+  }
+}
+
+async function direct(svcUrl, path) {
+  const url = svcUrl + path;
+  const t0 = Date.now();
+  try {
+    const r = await fetch(url, {signal:AbortSignal.timeout(3500)});
+    const ms = Date.now()-t0;
+    let body=null;
+    try { const txt=await r.text(); try{body=JSON.parse(txt);}catch(_){body=txt;} } catch(_){}
+    return {ok:r.ok, status:r.status, body, ms};
+  } catch(e) {
+    return {ok:false, status:0, body:null, ms:Date.now()-t0, err:e.message};
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOGGER
+// ═══════════════════════════════════════════════════════════
+function addLog(method, path, status, ms, body) {
+  S.logCount++;
+  document.getElementById('con-cnt').textContent = S.logCount + ' requests';
+  const log = document.getElementById('con-log');
+  const ok = status>=200 && status<300;
+  const time = new Date().toLocaleTimeString('en-GB');
+  const entry = document.createElement('div');
+  entry.className = 'le';
+  entry.innerHTML =
+    `<span class="lt">${time}</span>` +
+    `<span class="lm ${method}">${method}</span>` +
+    `<span class="lu">${path}</span>` +
+    `<span class="ls ${ok?'ok':'er'}">${status||'ERR'} · ${ms}ms</span>`;
+  log.appendChild(entry);
+  if (body) {
+    const bd = document.createElement('span');
+    bd.className = 'lb';
+    bd.textContent = JSON.stringify(body).substring(0,200);
+    log.appendChild(bd);
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('con-log').innerHTML='';
+  S.logCount=0;
+  document.getElementById('con-cnt').textContent='0 requests';
+}
+
+function toggleConsole() {
+  S.conCollapsed = !S.conCollapsed;
+  const log = document.getElementById('con-log');
+  const btn = document.getElementById('con-tog');
+  log.style.display = S.conCollapsed ? 'none' : 'block';
+  btn.textContent = S.conCollapsed ? '▼ Expand' : '▲ Collapse';
+}
+
+// ═══════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════
+const TITLES = {dashboard:'Dashboard',auth:'Authentication',books:'Books',
+  members:'Members',loans:'Loans',fines:'Fines',monitor:'System Monitor'};
+
+function nav(id) {
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.ni').forEach(i=>i.classList.remove('on'));
+  document.getElementById('sec-'+id).classList.add('on');
+  const ni = document.getElementById('ni-'+id);
+  if (ni) ni.classList.add('on');
+  document.getElementById('tb-title').textContent = TITLES[id]||id;
+  S.cur = id;
+  if (id==='monitor')   { checkAllHealth(); loadCircuitBreakers(); }
+  if (id==='dashboard') refreshDashboard();
+}
+
+function refreshCurrent() {
+  const fns = {dashboard:refreshDashboard, books:loadBooks, members:loadMembers,
+    loans:()=>loadLoans(S.loanTab), fines:()=>loadFines(S.fineTab),
+    monitor:()=>{checkAllHealth();loadCircuitBreakers();}, auth:loadMe};
+  if (fns[S.cur]) fns[S.cur]();
+}
+
+// ═══════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════
+function toggleCard(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display==='none' ? 'block' : 'none';
+}
+
+function showAlert(cid, type, msg) {
+  const el = document.getElementById(cid);
+  if (!el) return;
+  el.innerHTML = `<div class="al al-${type==='success'?'s':type==='error'?'e':'i'}">${msg}</div>`;
+  setTimeout(()=>{ if(el) el.innerHTML=''; }, 6000);
+}
+
+function updateTopbar() {
+  const b = document.getElementById('user-badge');
+  if (S.user) {
+    b.className = 'ub in';
+    b.innerHTML = `✓ ${S.user.username} <span style="opacity:.6;margin-left:4px">(${S.user.role})</span>`;
+  } else {
+    b.className = 'ub';
+    b.innerHTML = 'Not logged in';
+  }
+}
+
+function copyToClip(txt, btn) {
+  navigator.clipboard.writeText(txt).then(()=>{
+    const old=btn.textContent; btn.textContent='Copied!';
+    setTimeout(()=>btn.textContent=old, 1500);
+  });
+}
+
+// Formats FastAPI error responses — detail can be a string OR an array of validation objects
+function fmtErr(body) {
+  if (!body) return 'Unknown error';
+  if (Array.isArray(body.detail)) {
+    return body.detail.map(e=>{
+      const loc = Array.isArray(e.loc) ? e.loc.filter(x=>x!=='body').join('.') : '';
+      return loc ? `<strong>${loc}</strong>: ${e.msg}` : e.msg;
+    }).join('<br>');
+  }
+  if (typeof body.detail === 'string') return body.detail;
+  if (body.error) return body.error;
+  return JSON.stringify(body);
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+function qfill(role) {
+  const m = {admin:{username:'admin',pw:'admin123'},
+             member:{username:'member',pw:'member123'}};
+  const d = m[role]; if(!d) return;
+  document.getElementById('li-username').value = d.username;
+  document.getElementById('li-pw').value = d.pw;
+}
+
+async function doLogin() {
+  const username=document.getElementById('li-username').value.trim();
+  const password=document.getElementById('li-pw').value;
+  if (!username||!password){showAlert('auth-alert','error','Fill username and password');return;}
+  const {ok,status,body} = await api('POST','/auth/login',{username,password});
+  if (ok && body?.access_token) {
+    S.token = body.access_token;
+    localStorage.setItem('demo_token', S.token);
+    await loadMe();
+    showAlert('auth-alert','success',`Logged in as <strong>${S.user?.username}</strong>`);
+  } else {
+    showAlert('auth-alert','error',`Login failed (${status}):<br>${fmtErr(body)}`);
+  }
+}
+
+async function doRegister() {
+  const username=document.getElementById('rg-user').value.trim();
+  const email=document.getElementById('rg-email').value.trim();
+  const password=document.getElementById('rg-pw').value;
+  if (!username||!email||!password){showAlert('auth-alert','error','Semua field wajib diisi');return;}
+  if (password.length<8){showAlert('auth-alert','error','Password minimal 8 karakter');return;}
+  const {ok,body} = await api('POST','/auth/register',{username,email,password});
+  if (ok) {
+    showAlert('auth-alert','success','Registered! Now log in with your credentials.');
+  } else {
+    showAlert('auth-alert','error',`Register failed:<br>${fmtErr(body)}`);
+  }
+}
+
+async function doLogout() {
+  await api('POST','/auth/logout');
+  S.token=null; S.user=null; S.myMemberId=null;
+  localStorage.removeItem('demo_token'); localStorage.removeItem('demo_user');
+  updateTopbar();
+  document.getElementById('user-card').style.display='none';
+  showAlert('auth-alert','success','Logged out.');
+}
+
+async function loadMe() {
+  const {ok,body} = await api('GET','/auth/me');
+  if (!ok) return;
+  S.user = body;
+  localStorage.setItem('demo_user', JSON.stringify(body));
+  updateTopbar();
+  document.getElementById('user-card').style.display='block';
+  document.getElementById('user-info').innerHTML=`
+    <div class="g2">
+      <div><div style="font-size:11px;color:var(--txm)">Username</div><strong>${body.username}</strong></div>
+      <div><div style="font-size:11px;color:var(--txm)">Email</div>${body.email}</div>
+      <div><div style="font-size:11px;color:var(--txm)">Role</div><span class="b bg-b">${body.role}</span></div>
+      <div><div style="font-size:11px;color:var(--txm)">Active</div>
+        <span class="b ${body.is_active?'bg-g':'bg-r'}">${body.is_active?'Yes':'No'}</span></div>
+      <div style="grid-column:1/-1">
+        <div style="font-size:11px;color:var(--txm)">User ID</div>
+        <span class="mono">${body.id}</span>
+        <button class="btn btn-o btn-sm" style="margin-left:8px"
+          onclick="copyToClip('${body.id}',this)">Copy ID</button>
+      </div>
+    </div>`;
+}
+
+function fillUserId() {
+  if (S.user?.id) document.getElementById('mb-uid').value = S.user.id;
+  else showAlert('members-alert','error','Login first to get your User ID');
+}
+
+// ═══════════════════════════════════════════════════════════
+// BOOKS
+// ═══════════════════════════════════════════════════════════
+async function loadBooks() {
+  const q = document.getElementById('bk-q').value.trim();
+  const path = q ? `/books/search?q=${encodeURIComponent(q)}` : '/books';
+  const {ok,body} = await api('GET', path);
+  const tb = document.getElementById('bk-tbody');
+  if (!ok) { tb.innerHTML=`<tr><td colspan="7" class="empty">Error: ${fmtErr(body)||'Failed'}</td></tr>`; return; }
+  const books = Array.isArray(body) ? body : (body?.items||body?.books||[]);
+  if (!books.length) { tb.innerHTML=`<tr><td colspan="7" class="empty">No books found</td></tr>`; return; }
+  tb.innerHTML = books.map(b=>`
+    <tr>
+      <td><strong>${b.title}</strong></td>
+      <td>${b.author}</td>
+      <td><span class="b bg-b">${b.category||'—'}</span></td>
+      <td class="mono">${b.isbn||'—'}</td>
+      <td>${b.year||'—'}</td>
+      <td><span class="b ${b.available_copies>0?'bg-g':'bg-r'}">${b.available_copies||0}/${b.total_copies||0}</span></td>
+      <td><div style="display:flex;gap:4px">
+        <button class="btn btn-o btn-sm" onclick="copyToClip('${b.id}',this)">Copy ID</button>
+        <button class="btn btn-d btn-sm" onclick="deleteBook('${b.id}')">Delete</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+async function createBook() {
+  const d = {
+    title:document.getElementById('bk-title').value,
+    author:document.getElementById('bk-author').value,
+    isbn:document.getElementById('bk-isbn').value||null,
+    publisher:document.getElementById('bk-pub').value||null,
+    category:document.getElementById('bk-cat').value,
+    description:document.getElementById('bk-desc').value||null,
+    year:document.getElementById('bk-year').value ? Number(document.getElementById('bk-year').value) : null,
+    total_copies:Number(document.getElementById('bk-copies').value)||1,
+  };
+  if (!d.title||!d.author){showAlert('books-alert','error','Title and author required');return;}
+  const {ok,body} = await api('POST','/books',d);
+  if (ok) {
+    showAlert('books-alert','success',`Book "<strong>${d.title}</strong>" created!`);
+    toggleCard('create-book-card'); loadBooks();
+  } else {
+    showAlert('books-alert','error',`Failed:<br>${fmtErr(body)}`);
+  }
+}
+
+async function deleteBook(id) {
+  if (!confirm('Delete this book? (admin only)')) return;
+  const {ok,body} = await api('DELETE',`/books/${id}`);
+  if (ok) { showAlert('books-alert','success','Book deleted.'); loadBooks(); }
+  else showAlert('books-alert','error',`Failed:<br>${fmtErr(body)}`);
+}
+
+// ═══════════════════════════════════════════════════════════
+// MEMBERS
+// ═══════════════════════════════════════════════════════════
+async function loadMyProfile() {
+  const {ok,body} = await api('GET','/members/me');
+  const card = document.getElementById('my-profile-card');
+  const content = document.getElementById('my-profile');
+  card.style.display='block';
+  if (ok) {
+    S.myMemberId = body.id;
+    const stClr = {active:'bg-g',inactive:'bg-y',blocked:'bg-r'};
+    content.innerHTML=`
+      <div class="g2">
+        <div><div style="font-size:11px;color:var(--txm)">Full Name</div><strong>${body.full_name}</strong></div>
+        <div><div style="font-size:11px;color:var(--txm)">Email</div>${body.email}</div>
+        <div><div style="font-size:11px;color:var(--txm)">Phone</div>${body.phone||'—'}</div>
+        <div><div style="font-size:11px;color:var(--txm)">Status</div>
+          <span class="b ${stClr[body.status]||'bg-x'}">${body.status}</span></div>
+        <div style="grid-column:1/-1">
+          <div style="font-size:11px;color:var(--txm)">Member ID</div>
+          <span class="mono">${body.id}</span>
+          <button class="btn btn-o btn-sm" style="margin-left:8px"
+            onclick="copyToClip('${body.id}',this)">Copy ID</button>
+        </div>
+      </div>`;
+  } else {
+    content.innerHTML=`<div class="al al-e">No member profile found. Ask an admin to create one linked to your User ID.</div>`;
+  }
+}
+
+async function loadMembers() {
+  const {ok,body} = await api('GET','/members');
+  const tb = document.getElementById('mb-tbody');
+  if (!ok){ tb.innerHTML=`<tr><td colspan="6" class="empty">Error: ${fmtErr(body)||'Failed'}</td></tr>`; return; }
+  const members = Array.isArray(body) ? body : (body?.items||body?.members||[]);
+  if (!members.length){ tb.innerHTML=`<tr><td colspan="6" class="empty">No members found</td></tr>`; return; }
+  const stClr = {active:'bg-g',inactive:'bg-y',blocked:'bg-r'};
+  tb.innerHTML = members.map(m=>`
+    <tr>
+      <td><strong>${m.full_name}</strong></td>
+      <td>${m.email}</td>
+      <td>${m.phone||'—'}</td>
+      <td><span class="b ${stClr[m.status]||'bg-x'}">${m.status}</span></td>
+      <td class="mono" style="font-size:10px">${m.id}</td>
+      <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${m.status!=='active'?`<button class="btn btn-s btn-sm" onclick="setMemberStatus('${m.id}','active')">Aktifkan</button>`:''}
+        ${m.status!=='inactive'?`<button class="btn btn-o btn-sm" onclick="setMemberStatus('${m.id}','inactive')">Nonaktifkan</button>`:''}
+        ${m.status!=='blocked'?`<button class="btn btn-d btn-sm" onclick="setMemberStatus('${m.id}','blocked')">Blokir</button>`:''}
+        <button class="btn btn-o btn-sm" onclick="copyToClip('${m.id}',this)">Copy ID</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+async function createMember() {
+  const d = {
+    user_id:document.getElementById('mb-uid').value.trim(),
+    full_name:document.getElementById('mb-name').value,
+    email:document.getElementById('mb-email').value,
+    phone:document.getElementById('mb-phone').value||null,
+    address:document.getElementById('mb-addr').value||null,
+  };
+  if (!d.user_id||!d.full_name||!d.email){showAlert('members-alert','error','User ID, name, email required');return;}
+  const {ok,body} = await api('POST','/members',d);
+  if (ok) {
+    showAlert('members-alert','success',`Member "<strong>${d.full_name}</strong>" created!`);
+    toggleCard('create-member-card'); loadMembers();
+  } else {
+    showAlert('members-alert','error',`Failed:<br>${fmtErr(body)}`);
+  }
+}
+
+async function setMemberStatus(id, status) {
+  const {ok,body} = await api('PATCH',`/members/${id}/status`,{status});
+  if (ok) { showAlert('members-alert','success',`Status updated to <strong>${status}</strong>`); loadMembers(); }
+  else showAlert('members-alert','error',`Failed:<br>${fmtErr(body)}`);
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOANS
+// ═══════════════════════════════════════════════════════════
+async function fillMyMemberId() {
+  if (S.myMemberId) { document.getElementById('ln-mid').value=S.myMemberId; return; }
+  const {ok,body} = await api('GET','/members/me');
+  if (ok) { S.myMemberId=body.id; document.getElementById('ln-mid').value=body.id; }
+  else showAlert('loans-alert','error','Could not load member profile. Make sure you have one.');
+}
+
+async function createLoan() {
+  const book_id = document.getElementById('ln-bid').value.trim();
+  const member_id = document.getElementById('ln-mid').value.trim();
+  if (!book_id||!member_id){showAlert('loans-alert','error','Book ID and Member ID are required');return;}
+  const d = {book_id, member_id};
+  const {ok,body} = await api('POST','/loans',d);
+  if (ok) {
+    showAlert('loans-alert','success','Loan created successfully!');
+    toggleCard('create-loan-card'); loadLoans(S.loanTab);
+  } else {
+    showAlert('loans-alert','error',`Failed:<br>${fmtErr(body)}`);
+  }
+}
+
+function switchLoanTab(tab) {
+  S.loanTab=tab;
+  ['my','all','overdue'].forEach(t=>{
+    const el=document.getElementById(`lt-${t==='overdue'?'ov':t}`);
+    if(el) el.className='tab'+(tab===t?' on':'');
+  });
+  loadLoans(tab);
+}
+
+async function loadLoans(tab='my') {
+  const paths={my:'/loans/me', all:'/loans', overdue:'/loans/overdue'};
+  const {ok,body} = await api('GET', paths[tab]||'/loans/me');
+  const wrap = document.getElementById('loans-wrap');
+  if (!ok){ wrap.innerHTML=`<div class="empty">Error: ${fmtErr(body)||'Failed'}</div>`; return; }
+  const loans = Array.isArray(body)?body:(body?.items||body?.loans||[]);
+  if (!loans.length){ wrap.innerHTML=`<div class="empty">No loans found</div>`; return; }
+  const stClr={active:'bg-b',returned:'bg-g',overdue:'bg-r'};
+  wrap.innerHTML=`<div class="tw"><table>
+    <thead><tr><th>Loan ID</th><th>Book ID</th><th>Member ID</th><th>Loan Date</th><th>Due Date</th><th>Return</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>${loans.map(l=>`
+      <tr>
+        <td class="mono" style="font-size:10px">${l.id?.substring(0,8)}…</td>
+        <td><span class="mono" style="font-size:10px">${l.book_id?.substring(0,8)}…</span>
+          <button class="btn btn-o btn-sm" style="margin-left:4px" onclick="copyToClip('${l.book_id}',this)">Copy</button></td>
+        <td class="mono" style="font-size:10px">${l.member_id?.substring(0,8)}…</td>
+        <td>${l.loan_date?new Date(l.loan_date).toLocaleDateString('id-ID'):'—'}</td>
+        <td>${l.due_date?new Date(l.due_date).toLocaleDateString('id-ID'):'—'}</td>
+        <td>${l.return_date?new Date(l.return_date).toLocaleDateString('id-ID'):'—'}</td>
+        <td><span class="b ${stClr[l.status]||'bg-x'}">${l.status}</span></td>
+        <td><div style="display:flex;gap:4px">
+          ${['active','overdue'].includes(l.status)?`
+            <button class="btn btn-s btn-sm" onclick="returnLoan('${l.id}')">Return</button>
+            <button class="btn btn-o btn-sm" onclick="extendLoan('${l.id}')">Extend</button>`:
+          '—'}
+        </div></td>
+      </tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+async function returnLoan(id) {
+  const {ok,body} = await api('PATCH',`/loans/${id}/return`);
+  if (ok) { showAlert('loans-alert','success','Book returned!'); loadLoans(S.loanTab); }
+  else showAlert('loans-alert','error',`Failed:<br>${fmtErr(body)}`);
+}
+
+async function extendLoan(id) {
+  const raw = prompt('Perpanjang berapa hari? (1–14)', '7');
+  if (raw === null) return; // user cancel
+  const extra_days = parseInt(raw, 10);
+  if (isNaN(extra_days)||extra_days<1||extra_days>14) {
+    showAlert('loans-alert','error','Masukkan angka antara 1–14');return;
+  }
+  const {ok,body} = await api('PATCH',`/loans/${id}/extend`,{extra_days});
+  if (ok) { showAlert('loans-alert','success',`Loan diperpanjang ${extra_days} hari!`); loadLoans(S.loanTab); }
+  else showAlert('loans-alert','error',`Failed:<br>${fmtErr(body)}`);
+}
+
+// ═══════════════════════════════════════════════════════════
+// FINES
+// ═══════════════════════════════════════════════════════════
+function switchFineTab(tab) {
+  S.fineTab=tab;
+  ['my','all','unpaid'].forEach(t=>{
+    const el=document.getElementById(`ft-${t==='unpaid'?'un':t}`);
+    if(el) el.className='tab'+(tab===t?' on':'');
+  });
+  loadFines(tab);
+}
+
+async function loadFines(tab='my') {
+  const paths={my:'/fines/me', all:'/fines', unpaid:'/fines/unpaid'};
+  const {ok,body} = await api('GET', paths[tab]||'/fines/me');
+  const wrap = document.getElementById('fines-wrap');
+  if (!ok){ wrap.innerHTML=`<div class="empty">Error: ${fmtErr(body)||'Failed'}</div>`; return; }
+  const fines = Array.isArray(body)?body:(body?.items||body?.fines||[]);
+  if (!fines.length){ wrap.innerHTML=`<div class="empty">🎉 No fines found!</div>`; return; }
+  wrap.innerHTML=`<div class="tw"><table>
+    <thead><tr><th>Fine ID</th><th>Loan ID</th><th>Member ID</th><th>Amount</th><th>Status</th><th>Paid At</th><th>Actions</th></tr></thead>
+    <tbody>${fines.map(f=>`
+      <tr>
+        <td class="mono" style="font-size:10px">${f.id?.substring(0,8)}…</td>
+        <td class="mono" style="font-size:10px">${f.loan_id?.substring(0,8)}…</td>
+        <td class="mono" style="font-size:10px">${f.member_id?.substring(0,8)}…</td>
+        <td><strong>Rp ${(f.amount||0).toLocaleString('id-ID')}</strong></td>
+        <td><span class="b ${f.is_paid?'bg-g':'bg-r'}">${f.is_paid?'Paid':'Unpaid'}</span></td>
+        <td>${f.paid_at?new Date(f.paid_at).toLocaleDateString('id-ID'):'—'}</td>
+        <td>${!f.is_paid?`<button class="btn btn-s btn-sm" onclick="payFine('${f.id}')">Pay Fine</button>`:'—'}</td>
+      </tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+async function payFine(id) {
+  const {ok,body} = await api('PATCH',`/fines/${id}/pay`);
+  if (ok) { showAlert('fines-alert','success','Fine paid!'); loadFines(S.fineTab); }
+  else showAlert('fines-alert','error',`Failed:<br>${fmtErr(body)}`);
+}
+
+// ═══════════════════════════════════════════════════════════
+// MONITOR
+// ═══════════════════════════════════════════════════════════
+function buildHealthCards() {
+  document.getElementById('health-cards').innerHTML = SVCS.map(s=>`
+    <div class="shc">
+      <div class="shc-ic">${s.ic}</div>
+      <div class="shc-nm">${s.name}</div>
+      <div class="shc-pt">:${s.port}</div>
+      <div class="shc-st chk" id="hs-${s.key}">⏳ Checking…</div>
+      <div class="shc-ms" id="hms-${s.key}"></div>
+    </div>`).join('');
+}
+
+async function checkAllHealth() {
+  const tasks = SVCS.map(s=>direct(s.url,'/health').then(r=>({...s,...r})));
+  const results = await Promise.allSettled(tasks);
+  results.forEach((r,i)=>{
+    const s=SVCS[i];
+    const hs=document.getElementById('hs-'+s.key);
+    const hms=document.getElementById('hms-'+s.key);
+    const dot=document.getElementById('dot-'+s.key);
+    if (!hs) return;
+    const d = r.status==='fulfilled' ? r.value : {ok:false,ms:3500,err:'timeout'};
+    if (d.ok) {
+      hs.className='shc-st up'; hs.textContent='● Online';
+      if(hms) hms.textContent=d.ms+'ms';
+      if(dot) dot.className='dot up';
+    } else {
+      hs.className='shc-st dn'; hs.textContent='● Offline';
+      if(hms) hms.textContent=d.err||`HTTP ${d.status}`;
+      if(dot) dot.className='dot dn';
+    }
+  });
+}
+
+async function loadCircuitBreakers() {
+  const container = document.getElementById('cb-cards');
+  const {ok,body} = await api('GET','/admin/circuit-breakers');
+  if (!ok||typeof body!=='object'||!body) {
+    container.innerHTML=`<div class="cbc"><div style="color:var(--txm);font-size:13px">
+      ${ok?'No circuit breaker data':'Requires auth — login first or check gateway config'}
+    </div></div>`;
+    return;
+  }
+  const cl={closed:'closed',open:'open','half-open':'half-open','half_open':'half-open'};
+  container.innerHTML = Object.entries(body).map(([name,cb])=>{
+    const st = cl[cb.state]||'closed';
+    return `<div class="cbc">
+      <div class="cb-dot ${st}"></div>
+      <div>
+        <div class="cb-nm">${name}</div>
+        <div class="cb-dt">State: <strong>${cb.state||'closed'}</strong>
+          · Failures: ${cb.failure_count??0}
+          ${cb.last_failure?` · Last fail: ${new Date(cb.last_failure).toLocaleString('id-ID')}`:''}
+        </div>
+      </div>
+    </div>`;}).join('');
+}
+
+async function loadMetrics() {
+  const svcUrl = document.getElementById('met-svc').value;
+  const out = document.getElementById('met-out');
+  out.textContent='Fetching…';
+  const {ok,body,err} = await direct(svcUrl,'/metrics');
+  if (ok) {
+    out.textContent = typeof body==='string' ? body : JSON.stringify(body,null,2);
+  } else {
+    out.textContent = `Error: ${err||'Could not fetch metrics — CORS or service offline'}`;
+  }
+}
+
+function toggleAutoRefresh() {
+  S.autoRefresh = !S.autoRefresh;
+  document.getElementById('ar-btn').className = 'tgl'+(S.autoRefresh?' on':'');
+  if (S.autoRefresh) {
+    S.arTimer = setInterval(()=>{checkAllHealth();loadCircuitBreakers();}, 15000);
+  } else {
+    clearInterval(S.arTimer); S.arTimer=null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════
+async function refreshDashboard() {
+  const container = document.getElementById('dash-svc');
+  container.innerHTML = SVCS.map(s=>`
+    <div class="mc">
+      <div class="mc-lbl">${s.ic} ${s.name}</div>
+      <div class="mc-val" id="ds-${s.key}" style="font-size:13px;margin:5px 0">
+        <span style="color:var(--txm)">…</span>
+      </div>
+      <div class="mc-sub">:${s.port}</div>
+    </div>`).join('');
+
+  const results = await Promise.allSettled(
+    SVCS.map(s=>direct(s.url,'/health').then(r=>({...s,...r})))
+  );
+  results.forEach((r,i)=>{
+    const s=SVCS[i];
+    const el=document.getElementById('ds-'+s.key);
+    if (!el) return;
+    const d=r.status==='fulfilled'?r.value:{ok:false};
+    el.innerHTML = d.ok
+      ? `<span style="color:var(--ok);font-weight:700">● Online</span><span style="font-size:10px;color:var(--txm);margin-left:5px">${d.ms}ms</span>`
+      : `<span style="color:var(--err);font-weight:700">● Offline</span>`;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+function init() {
+  buildHealthCards();
+  updateTopbar();
+  // Restore session if token exists
+  if (S.token) {
+    loadMe().catch(()=>{
+      S.token=null; localStorage.removeItem('demo_token'); updateTopbar();
+    });
+  }
+  refreshDashboard();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
