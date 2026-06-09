@@ -709,10 +709,18 @@ function showAlert(cid, type, msg) {
 function updateTopbar() {
   const b = document.getElementById('user-badge');
   if (S.user) {
-    b.className = 'ub in';
-    b.innerHTML = `✓ ${S.user.username} <span style="opacity:.6;margin-left:4px">(${S.user.role})</span>`;
+    const colors = {
+      admin:     'background:#6e40c9;color:#fff;border-color:#6e40c9',
+      librarian: 'background:#0969da;color:#fff;border-color:#0969da',
+      member:    'background:#1a7f37;color:#fff;border-color:#1a7f37',
+    };
+    const style = colors[S.user.role] || colors.member;
+    b.className = 'ub';
+    b.style.cssText = style;
+    b.innerHTML = `✓ ${S.user.username}`;
   } else {
     b.className = 'ub';
+    b.style.cssText = '';
     b.innerHTML = 'Not logged in';
   }
 }
@@ -795,18 +803,11 @@ async function loadMe() {
   updateTopbar();
   document.getElementById('user-card').style.display='block';
   document.getElementById('user-info').innerHTML=`
-    <div class="g2">
-      <div><div style="font-size:11px;color:var(--txm)">Username</div><strong>${body.username}</strong></div>
-      <div><div style="font-size:11px;color:var(--txm)">Email</div>${body.email}</div>
-      <div><div style="font-size:11px;color:var(--txm)">Role</div><span class="b bg-b">${body.role}</span></div>
-      <div><div style="font-size:11px;color:var(--txm)">Active</div>
-        <span class="b ${body.is_active?'bg-g':'bg-r'}">${body.is_active?'Yes':'No'}</span></div>
-      <div style="grid-column:1/-1">
-        <div style="font-size:11px;color:var(--txm)">User ID</div>
-        <span class="mono">${body.id}</span>
-        <button class="btn btn-o btn-sm" style="margin-left:8px"
-          onclick="copyToClip('${body.id}',this)">Copy ID</button>
-      </div>
+    <div><div style="font-size:11px;color:var(--txm)">Username</div><strong style="font-size:15px">${body.username}</strong></div>
+    <div style="margin-top:10px">
+      <div style="font-size:11px;color:var(--txm)">User ID</div>
+      <span class="mono">${body.id}</span>
+      <button class="btn btn-o btn-sm" style="margin-left:8px" onclick="copyToClip('${body.id}',this)">Copy ID</button>
     </div>`;
 }
 
